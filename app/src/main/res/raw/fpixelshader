@@ -1,0 +1,327 @@
+#extension GL_OES_EGL_image_external : require
+
+uniform samplerExternalOES sTexture;
+varying mediump vec2 vTextureCoord;
+
+precision mediump float;
+
+//const vec4 C64_PALETTE_LAB[16] = vec4[16](
+//    vec4( 0.000000,   0.000000,   0.000000  , 1.0),
+//    vec4( 100.000000, 0.005245,   -0.010419 , 1.0),
+//    vec4( 27.391956,  50.208809,  40.430969 , 1.0),
+//    vec4( 94.414490,  -29.237389, -0.042665 , 1.0),
+//    vec4( 53.310135,  69.164993,  -43.780552, 1.0),
+//    vec4( 72.122505,  -67.213951, 46.765865 , 1.0),
+//    vec4( 19.648212,  58.448612,  -79.605415, 1.0),
+//    vec4( 91.979347,  -15.699089, 56.938076 , 1.0),
+//    vec4( 64.672890,  27.784765,  40.698154 , 1.0),
+//    vec4( 31.713444,  9.240970,   41.154800 , 1.0),
+//    vec4( 66.355751,  51.760643,  25.235188 , 1.0),
+//    vec4( 21.246727,  0.001699,   -0.003344 , 1.0),
+//    vec4( 50.034439,  0.003010,   -0.005925 , 1.0),
+//    vec4( 92.142982,  -50.145210, 63.456894 , 1.0),
+//    vec4( 56.907761,  13.833464,  -67.388283, 1.0),
+//    vec4( 75.880630,  0.004172,   -0.008237 , 1.0)
+//);
+//
+//const vec4 C64_PALETTE_RGB[16] = vec4[16](
+//    vec4(0.000000, 0.000000, 0.000000, 1.0),
+//    vec4(1.000000, 1.000000, 1.000000, 1.0),
+//    vec4(0.533331, 0.000000, 0.000000, 1.0),
+//    vec4(0.666679, 1.000000, 0.933341, 1.0),
+//    vec4(0.800005, 0.266691, 0.800002, 1.0),
+//    vec4(0.000000, 0.800014, 0.333347, 1.0),
+//    vec4(0.000119, 0.000000, 0.666668, 1.0),
+//    vec4(0.933332, 0.933358, 0.466680, 1.0),
+//    vec4(0.866665, 0.533358, 0.333340, 1.0),
+//    vec4(0.399998, 0.266679, 0.000000, 1.0),
+//    vec4(0.999998, 0.466699, 0.466670, 1.0),
+//    vec4(0.200002, 0.200006, 0.200002, 1.0),
+//    vec4(0.466670, 0.466678, 0.466670, 1.0),
+//    vec4(0.666667, 1.000000, 0.400018, 1.0),
+//    vec4(0.000297, 0.533335, 1.000000, 1.0),
+//    vec4(0.733338, 0.733351, 0.733339, 1.0)
+//);
+
+vec4 rgb_to_xyz(vec4 color)
+{
+	float var_R = (color.r); //R from 0.0 to 255.0
+    float var_G = (color.g); //G from 0.0 to 255.0
+    float var_B = (color.b); //B from 0.0 to 255.0
+
+    if (var_R > 0.04045) {
+        var_R = pow(((var_R + 0.055) / 1.055), 2.4);
+    } else {
+        var_R = var_R / 12.92;
+    }
+    if (var_G > 0.04045) {
+        var_G = pow(((var_G + 0.055) / 1.055), 2.4);
+    } else {
+        var_G = var_G / 12.92;
+    }
+
+    if (var_B > 0.04045) {
+        var_B = pow(((var_B + 0.055) / 1.055), 2.4);
+    } else {
+        var_B = var_B / 12.92;
+    }
+
+    var_R = var_R * 100.0;
+    var_G = var_G * 100.0;
+    var_B = var_B * 100.0;
+
+    //Observer. = 2.0°, Illuminant = D65
+    float X = var_R * 0.4124 + var_G * 0.3576 + var_B * 0.1805;
+    float Y = var_R * 0.2126 + var_G * 0.7152 + var_B * 0.0722;
+    float Z = var_R * 0.0193 + var_G * 0.1192 + var_B * 0.9505;
+
+    return vec4(X, Y, Z, color.a);
+}
+
+vec4 xyz_to_rgb(vec4 color) {
+    float var_X = color.r / 100.0; //X from 0.0 to  95.047      (Observer = 2.0 degrees, Illuminant = D65);
+    float var_Y = color.g / 100.0; //Y from 0.0 to 100.000;
+    float var_Z = color.b / 100.0; //Z from 0.0 to 108.883;
+
+    float var_R = var_X * 3.2406 + var_Y * -1.5372 + var_Z * -0.4986;
+    float var_G = var_X * -0.9689 + var_Y * 1.8758 + var_Z * 0.0415;
+    float var_B = var_X * 0.0557 + var_Y * -0.2040 + var_Z * 1.0570;
+
+    if (var_R > 0.0031308) {
+        var_R = 1.055 * pow(var_R, (1.0 / 2.4)) - 0.055;
+    } else {
+        var_R = 12.92 * var_R;
+    }
+    if (var_G > 0.0031308) {
+        var_G = 1.055 * pow(var_G, (1.0 / 2.4)) - 0.055;
+    } else {
+        var_G = 12.92 * var_G;
+    }
+    if (var_B > 0.0031308) {
+        var_B = 1.055 * pow(var_B, (1.0 / 2.4)) - 0.055;
+    } else {
+        var_B = 12.92 * var_B;
+    }
+
+    float R = var_R;
+    float G = var_G;
+    float B = var_B;
+
+    return vec4(R, G, B, color.a);
+}
+
+vec4 xyz_to_lab(vec4 color) {
+
+    float ref_X = 95.047; //Observer= 2.0°, Illuminant= D65
+    float ref_Y = 100.000;
+    float ref_Z = 108.883;
+
+    float var_X = color.r / ref_X;
+    float var_Y = color.g / ref_Y;
+    float var_Z = color.b / ref_Z;
+
+    if (var_X > 0.008856) {
+        var_X = pow(var_X, (1.0 / 3.0));
+    } else {
+        var_X = (7.787 * var_X) + (16.0 / 116.0);
+    }
+    if (var_Y > 0.008856) {
+        var_Y = pow(var_Y, (1.0 / 3.0));
+    } else {
+        var_Y = (7.787 * var_Y) + (16.0 / 116.0);
+    }
+    if (var_Z > 0.008856) {
+        var_Z = pow(var_Z, (1.0 / 3.0));
+    } else {
+        var_Z = (7.787 * var_Z) + (16.0 / 116.0);
+    }
+
+    float L = (116.0 * var_Y) - 16.0;
+    float a = 500.0 * (var_X - var_Y);
+    float b = 200.0 * (var_Y - var_Z);
+
+    return vec4(L, a, b, color.a);
+}
+
+vec4 lab_to_xyz(vec4 color) {
+    float var_Y = (color.r + 16.0) / 116.0;
+    float var_X = color.g / 500.0 + var_Y;
+    float var_Z = var_Y - color.b / 200.0;
+
+    if (pow(var_Y, 3.0) > 0.008856) {
+        var_Y = pow(var_Y, 3.0);
+    } else {
+        var_Y = (var_Y - 16.0 / 116.0) / 7.787;
+    }
+    if (pow(var_X, 3.0) > 0.008856) {
+        var_X = pow(var_X, 3.0);
+    } else {
+        var_X = (var_X - 16.0 / 116.0) / 7.787;
+    }
+    if (pow(var_Z, 3.0) > 0.008856) {
+        var_Z = pow(var_Z, 3.0);
+    } else {
+        var_Z = (var_Z - 16.0 / 116.0) / 7.787;
+    }
+
+    float ref_X = 95.047; //Observer= 2.0 degrees, Illuminant= D65
+    float ref_Y = 100.000;
+    float ref_Z = 108.883;
+
+    float X = ref_X * var_X;
+    float Y = ref_Y * var_Y;
+    float Z = ref_Z * var_Z;
+
+    return vec4(X, Y, Z, color.a);
+}
+
+vec4 rgb_to_lab(vec4 rgb)
+{
+	return xyz_to_lab(rgb_to_xyz(rgb));
+}
+
+vec4 lab_to_rgb(vec4 color)
+{
+    return xyz_to_rgb(lab_to_xyz(color));
+}
+
+vec4 normalize_lab(vec4 lab)
+{
+    return vec4(lab.r / 100.0, (lab.g + 86.185) / 184.439, (lab.b + 107.863) / 202.345, lab.a);
+}
+
+float get_delta_e(vec4 lab1, vec4 lab2)
+{
+    //vec4 norm_lab1 = normalize_lab(lab1);
+    //vec4 norm_lab2 = normalize_lab(lab2);
+	//float dL = norm_lab1.r - norm_lab2.r;
+	//float da = norm_lab1.g - norm_lab2.g;
+	//float db = norm_lab1.b - norm_lab2.b;
+
+    float dL = lab1.r - lab2.r;
+    float da = lab1.g - lab2.g;
+    float db = lab1.b - lab2.b;
+	float dE = sqrt(dL * dL + da * da + db * db);
+
+	return dE;
+
+    //vec4 norm_lab1 = normalize_lab(lab1);
+    //vec4 norm_lab2 = normalize_lab(lab2);
+	//vec3 lb1 = norm_lab1.rgb;
+	//vec3 lb2 = norm_lab2.rgb;
+//
+	//return distance(lb1, lb2);
+}
+
+vec4 get_nearest_color(vec4 rgba)
+{
+    vec4 C64_PALETTE_LAB[16];
+
+    C64_PALETTE_LAB[0]  = vec4( 0.000000,   0.000000,   0.000000  , 1.0);
+    C64_PALETTE_LAB[1]  = vec4( 100.000000, 0.005245,   -0.010419 , 1.0);
+    C64_PALETTE_LAB[2]  = vec4( 27.391956,  50.208809,  40.430969 , 1.0);
+    C64_PALETTE_LAB[3]  = vec4( 94.414490,  -29.237389, -0.042665 , 1.0);
+    C64_PALETTE_LAB[4]  = vec4( 53.310135,  69.164993,  -43.780552, 1.0);
+    C64_PALETTE_LAB[5]  = vec4( 72.122505,  -67.213951, 46.765865 , 1.0);
+    C64_PALETTE_LAB[6]  = vec4( 19.648212,  58.448612,  -79.605415, 1.0);
+    C64_PALETTE_LAB[7]  = vec4( 91.979347,  -15.699089, 56.938076 , 1.0);
+    C64_PALETTE_LAB[8]  = vec4( 64.672890,  27.784765,  40.698154 , 1.0);
+    C64_PALETTE_LAB[9]  = vec4( 31.713444,  9.240970,   41.154800 , 1.0);
+    C64_PALETTE_LAB[10] = vec4( 66.355751,  51.760643,  25.235188 , 1.0);
+    C64_PALETTE_LAB[11] = vec4( 21.246727,  0.001699,   -0.003344 , 1.0);
+    C64_PALETTE_LAB[12] = vec4( 50.034439,  0.003010,   -0.005925 , 1.0);
+    C64_PALETTE_LAB[13] = vec4( 92.142982,  -50.145210, 63.456894 , 1.0);
+    C64_PALETTE_LAB[14] = vec4( 56.907761,  13.833464,  -67.388283, 1.0);
+    C64_PALETTE_LAB[15] = vec4( 75.880630,  0.004172,   -0.008237 , 1.0);
+
+    vec4 C64_PALETTE_RGB[16];
+
+    C64_PALETTE_RGB[0]  = vec4(0.000000, 0.000000, 0.000000, 1.0);
+    C64_PALETTE_RGB[1]  = vec4(1.000000, 1.000000, 1.000000, 1.0);
+    C64_PALETTE_RGB[2]  = vec4(0.533331, 0.000000, 0.000000, 1.0);
+    C64_PALETTE_RGB[3]  = vec4(0.666679, 1.000000, 0.933341, 1.0);
+    C64_PALETTE_RGB[4]  = vec4(0.800005, 0.266691, 0.800002, 1.0);
+    C64_PALETTE_RGB[5]  = vec4(0.000000, 0.800014, 0.333347, 1.0);
+    C64_PALETTE_RGB[6]  = vec4(0.000119, 0.000000, 0.666668, 1.0);
+    C64_PALETTE_RGB[7]  = vec4(0.933332, 0.933358, 0.466680, 1.0);
+    C64_PALETTE_RGB[8]  = vec4(0.866665, 0.533358, 0.333340, 1.0);
+    C64_PALETTE_RGB[9]  = vec4(0.399998, 0.266679, 0.000000, 1.0);
+    C64_PALETTE_RGB[10] = vec4(0.999998, 0.466699, 0.466670, 1.0);
+    C64_PALETTE_RGB[11] = vec4(0.200002, 0.200006, 0.200002, 1.0);
+    C64_PALETTE_RGB[12] = vec4(0.466670, 0.466678, 0.466670, 1.0);
+    C64_PALETTE_RGB[13] = vec4(0.666667, 1.000000, 0.400018, 1.0);
+    C64_PALETTE_RGB[14] = vec4(0.000297, 0.533335, 1.000000, 1.0);
+    C64_PALETTE_RGB[15] = vec4(0.733338, 0.733351, 0.733339, 1.0);
+
+	float min_dE = 100.0;
+	int nearest = 0;
+	vec4 cur_lab = rgb_to_lab(rgba);
+	float cur_dE;
+	for (int i = 0; i < 16; i++)
+	{
+		cur_dE = get_delta_e(cur_lab, C64_PALETTE_LAB[i]);
+		if (cur_dE < min_dE)
+		{
+			min_dE = cur_dE;
+			nearest = i;
+		}
+	}
+	vec4 col = C64_PALETTE_RGB[nearest];
+
+	return col;
+}
+
+vec3 czm_saturation(vec3 rgb, float adjustment)
+{
+    // Algorithm from Chapter 16 of OpenGL Shading Language
+    const vec3 W = vec3(0.2125, 0.7154, 0.0721);
+    float inten = dot(rgb, W);
+    vec3 intensity = vec3(inten, inten, inten);
+    return mix(intensity, rgb, adjustment);
+}
+
+float getVal(float x)
+{
+    return sqrt(x * 1920.0 * 1920.0);
+}
+
+void main(){
+    float pixel_w = 20.0;
+  	float pixel_h = 18.0;
+
+	float vx_offset = 0.5;
+	float rt_w = 1920.0;
+	float rt_h = 1200.0;
+
+	vec3 tc = vec3(1.0, 0.0, 0.0);
+	vec4 color;
+
+	//float min_dE = 255.0;
+	//float cur_val = getVal(vTextureCoord.x);
+//
+	//if (cur_val <= min_dE)
+	//{
+	//    color = vec4(1.0, 0.0, 0.0, 1.0);
+	//} else {
+	//    color = vec4(0.0, 1.0, 0.0, 1.0);
+	//}
+
+	if (vTextureCoord.x < (vx_offset-0.005))
+  	{
+    	float dx = pixel_w*(1./rt_w);
+    	float dy = pixel_h*(1./rt_h);
+    	vec2 coord = vec2(dx*floor(vTextureCoord.x/dx),
+                      dy*floor(vTextureCoord.y/dy));
+    	tc = texture2D(sTexture, coord).rgb;
+
+    	tc = czm_saturation(tc, 1.5);
+
+    	color = get_nearest_color(vec4(tc, 1.0));
+  	}
+  	else if (vTextureCoord.x >= (vx_offset+0.005))
+  	{
+    	color = texture2D(sTexture, vTextureCoord);
+  	}
+
+	gl_FragColor = color;
+}
